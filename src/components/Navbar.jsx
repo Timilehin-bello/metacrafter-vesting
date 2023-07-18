@@ -7,7 +7,7 @@ const Navbar = () => {
     <header
       className={`flex justify-between p-5 top-0 z-0 shadow-blue-50 left-0 right-0 fixed bg-slate-200 `}
     >
-      <div className="flex space-x-2 justify-between items-center font-light text-2xl text-black uppercase">
+      <div className="flex space-x-2 justify-between items-center font-light text-2xl text-black font-bold uppercase">
         <a href="/">
           {" "}
           <p>MetaCrafters Vesting DApp</p>

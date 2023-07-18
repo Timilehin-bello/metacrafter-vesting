@@ -11,6 +11,7 @@ contract Vesting {
     }
 
     struct Stakeholder {
+        address stakeholderAddress;
         string stakeholderPost;
         uint256 vestingPeriod;
         uint256 startTime;
@@ -21,26 +22,9 @@ contract Vesting {
     mapping(address => Stakeholder) public stakeholders;
     mapping(address => bool) public whitelistedAddresses;
     mapping(address => Organisation) public organisations;
-    mapping(address => uint256) public balance;
+    mapping(address => uint) public balance;
 
     event CreateStakeholder(uint256 startTime, uint256 vestingPeriod);
-
-    modifier onlyOrganisationAdmin() {
-        require(
-            organisations[msg.sender].orgAddress == msg.sender,
-            "Unauthorized: Only the organization admin can perform this action"
-        );
-
-        _;
-    }
-
-    modifier onlyWhitelisted() {
-        require(
-            whitelistedAddresses[msg.sender],
-            "Only whitelisted address can withdraw"
-        );
-        _;
-    }
 
     function addOrganisation(
         string memory _name,
@@ -59,34 +43,46 @@ contract Vesting {
         string memory _post,
         uint256 _vestingPeriod,
         uint256 _token
-    ) public onlyOrganisationAdmin {
-        Organisation storage org = organisations[msg.sender];
+    ) public {
         require(
-            org.token >= _token,
+            organisations[msg.sender].orgAddress == msg.sender,
+            "Unauthorized"
+        );
+        require(
+            organisations[msg.sender].token >= _token,
             "Token cannot be greater than the total token"
         );
 
-        Stakeholder storage stakeholder = stakeholders[_stakeholderAddress];
-        stakeholder.stakeholderPost = _post;
-        stakeholder.vestingPeriod = _vestingPeriod;
-        stakeholder.startTime = block.timestamp;
-        stakeholder.token = _token;
-        stakeholder.claimedToken = 0;
+        stakeholders[_stakeholderAddress] = Stakeholder({
+            stakeholderAddress: _stakeholderAddress,
+            stakeholderPost: _post,
+            vestingPeriod: _vestingPeriod,
+            startTime: block.timestamp,
+            token: _token,
+            claimedToken: 0
+        });
 
         emit CreateStakeholder(block.timestamp, _vestingPeriod);
     }
 
-    function whitelistAddress(
-        address _stakeholder
-    ) external onlyOrganisationAdmin {
+    function whitelistAddress(address _stakeholder) external {
+        require(
+            organisations[msg.sender].orgAddress == msg.sender,
+            "Only organization admin can perform this action"
+        );
         whitelistedAddresses[_stakeholder] = true;
     }
 
-    function claimToken() external onlyWhitelisted {
+    function claimToken() external {
+        require(
+            whitelistedAddresses[msg.sender],
+            "Only whitelisted address can withdraw"
+        );
         Stakeholder storage stakeholder = stakeholders[msg.sender];
         require(
-            stakeholder.startTime != 0,
-            "You do not belong to any organization"
+            organisations[msg.sender].orgAddress == msg.sender ||
+                stakeholder.stakeholderAddress == msg.sender,
+            "You do not belong to this organisation"
         );
         require(
             block.timestamp >=
@@ -98,14 +94,14 @@ contract Vesting {
         require(claimableTokens > 0, "No tokens available to claim");
 
         stakeholder.claimedToken += claimableTokens;
-        balance[msg.sender] += claimableTokens;
+        balance[stakeholder.stakeholderAddress] = claimableTokens;
     }
 
     function getClaimedToken() public view returns (uint256) {
         return balance[msg.sender];
     }
 
-    function getStakeholderPosition(
+    function getStakeholderPostion(
         address _address
     ) public view returns (Stakeholder memory) {
         return stakeholders[_address];
